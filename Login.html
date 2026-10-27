@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ShopLedger — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0b0f1a;
+      --panel:     #111827;
+      --border:    #1e2d45;
+      --accent:    #f97316;
+      --accent2:   #fb923c;
+      --text:      #f1f5f9;
+      --muted:     #64748b;
+      --input-bg:  #1a2537;
+      --success:   #22c55e;
+      --error:     #ef4444;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* background grid */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(249,115,22,.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(249,115,22,.05) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+
+    /* glow */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(ellipse, rgba(249,115,22,.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .login-card {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 440px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px 40px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.5);
+      animation: fadeIn .5s ease both;
+    }
+
+    .login-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2), transparent);
+      border-radius: 20px 20px 0 0;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* brand */
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 32px;
+    }
+
+    .brand-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 30px rgba(249,115,22,.3);
+      flex-shrink: 0;
+    }
+
+    .brand-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #fff 40%, var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .login-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -.5px;
+    }
+
+    .login-sub {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .form-group { margin-top: 24px; }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin-bottom: 8px;
+    }
+
+    .input-wrap { position: relative; }
+
+    .input-wrap .icon {
+      position: absolute;
+      left: 14px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 15px;
+      color: var(--muted);
+      pointer-events: none;
+      transition: color .2s;
+    }
+
+    .input-wrap input {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 14px 13px 42px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .input-wrap input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(249,115,22,.15);
+    }
+
+    .input-wrap:focus-within .icon { color: var(--accent); }
+
+    .toggle-pw {
+      position: absolute;
+      right: 14px; top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 15px;
+      color: var(--muted);
+      user-select: none;
+      transition: color .2s;
+    }
+    .toggle-pw:hover { color: var(--accent); }
+
+    .row-between {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+    }
+
+    .remember {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: var(--muted); cursor: pointer;
+    }
+
+    .remember input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 15px; height: 15px; cursor: pointer;
+    }
+
+    .forgot {
+      font-size: 13px;
+      color: var(--accent);
+      text-decoration: none;
+      transition: opacity .2s;
+    }
+    .forgot:hover { opacity: .75; }
+
+    .btn-login {
+      width: 100%;
+      margin-top: 28px;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 10px;
+      font-family: 'Syne', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      letter-spacing: .03em;
+      position: relative;
+      overflow: hidden;
+      transition: transform .15s, box-shadow .15s;
+      box-shadow: 0 4px 24px rgba(249,115,22,.35);
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(249,115,22,.45);
+    }
+
+    .btn-login:active { transform: translateY(0); }
+
+    .btn-login .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,.25);
+      animation: ripple .5s linear;
+      pointer-events: none;
+    }
+
+    @keyframes ripple {
+      from { width: 0; height: 0; opacity: 1; transform: translate(-50%,-50%) scale(0); }
+      to   { width: 200px; height: 200px; opacity: 0; transform: translate(-50%,-50%) scale(1); }
+    }
+
+    .btn-login .spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .alert {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .alert.error  { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3); color: #fca5a5; }
+    .alert.success{ background: rgba(34,197,94,.12);  border: 1px solid rgba(34,197,94,.3);  color: #86efac; }
+
+    .demo-hint {
+      margin-top: 20px;
+      padding: 14px;
+      background: rgba(249,115,22,.07);
+      border: 1px dashed rgba(249,115,22,.25);
+      border-radius: 10px;
+      font-size: 12.5px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .demo-hint strong { color: var(--accent2); }
+  </style>
+</head>
+<body>
+
+<div class="login-card">
+
+  <div class="brand-row">
+    <div class="brand-icon">🏪</div>
+    <div class="brand-name">ShopLedger</div>
+  </div>
+
+  <div class="login-title">Welcome back 👋</div>
+  <div class="login-sub">Sign in to your ShopLedger account</div>
+
+  <div class="form-group">
+    <label>Username</label>
+    <div class="input-wrap">
+      <input type="text" id="username" placeholder="Enter your username" autocomplete="username"/>
+      <span class="icon">👤</span>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Password</label>
+    <div class="input-wrap">
+      <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password"/>
+      <span class="icon">🔒</span>
+      <span class="toggle-pw" id="togglePw" title="Show/hide password">👁️</span>
+    </div>
+  </div>
+
+  <div class="row-between">
+    <label class="remember">
+      <input type="checkbox" id="remember"/> Remember me
+    </label>
+    <a href="#" class="forgot">Forgot password?</a>
+  </div>
+
+  <button class="btn-login" id="loginBtn" onclick="handleLogin(event)">
+    <span id="btnText">Sign In</span>
+    <div class="spinner" id="spinner"></div>
+  </button>
+
+  <div class="alert error" id="alertError">
+    ❌ <span id="errorMsg">Invalid username or password.</span>
+  </div>
+  <div class="alert success" id="alertSuccess">
+    ✅ Login successful! Redirecting…
+  </div>
+
+  
+
+</div>
+
+<script>
+  document.getElementById('togglePw').addEventListener('click', function () {
+    const pw = document.getElementById('password');
+    pw.type = pw.type === 'password' ? 'text' : 'password';
+    this.textContent = pw.type === 'password' ? '👁️' : '🙈';
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleLogin(e);
+  });
+
+  function addRipple(btn, e) {
+    const r = document.createElement('span');
+    r.classList.add('ripple');
+    const rect = btn.getBoundingClientRect();
+    r.style.left = (e.clientX - rect.left) + 'px';
+    r.style.top  = (e.clientY - rect.top)  + 'px';
+    btn.appendChild(r);
+    setTimeout(() => r.remove(), 600);
+  }
+
+  async function handleLogin(e) {
+    const btn     = document.getElementById('loginBtn');
+    const btnText = document.getElementById('btnText');
+    const spinner = document.getElementById('spinner');
+    const errBox  = document.getElementById('alertError');
+    const errMsg  = document.getElementById('errorMsg');
+    const sucBox  = document.getElementById('alertSuccess');
+
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
+
+    errBox.style.display = 'none';
+    sucBox.style.display = 'none';
+
+    if (!username || !password) {
+      errMsg.textContent = 'Please enter both username and password.';
+      errBox.style.display = 'flex';
+      return;
+    }
+
+    addRipple(btn, e);
+    btnText.style.display = 'none';
+    spinner.style.display = 'block';
+    btn.disabled = true;
+
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        sessionStorage.setItem('shopledger_user', username);
+        if (document.getElementById('remember').checked) {
+          localStorage.setItem('shopledger_user', username);
+        }
+        sucBox.style.display = 'flex';
+        setTimeout(() => { window.location.href = 'index.html'; }, 1200);
+      } else {
+        errMsg.textContent = data.message || 'Invalid username or password.';
+        errBox.style.display = 'flex';
+        btnText.style.display = 'block';
+        spinner.style.display = 'none';
+        btn.disabled = false;
+      }
+    } catch (err) {
+      if (username === 'admin' && password === 'admin123') {
+        sessionStorage.setItem('shopledger_user', username);
+        sucBox.style.display = 'flex';
+        setTimeout(() => { window.location.href = 'index.html'; }, 1200);
+      } else {
+        errMsg.textContent = 'Cannot connect to server. Use demo: admin / admin123';
+        errBox.style.display = 'flex';
+        btnText.style.display = 'block';
+        spinner.style.display = 'none';
+        btn.disabled = false;
+      }
+    }
+  }
+
+  window.onload = () => {
+    const saved = localStorage.getItem('shopledger_user');
+    if (saved) {
+      document.getElementById('username').value = saved;
+      document.getElementById('remember').checked = true;
+    }
+  };
+</script>
+</body>
+</html>

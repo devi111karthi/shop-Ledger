@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ShopLedger — Smart Shop Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #161921;
+      --surface2:  #1e222d;
+      --border:    #2a2f3e;
+      --accent:    #f0b429;
+      --accent2:   #38bdf8;
+      --green:     #34d399;
+      --red:       #f87171;
+      --purple:    #a78bfa;
+      --text:      #e8eaf0;
+      --muted:     #6b7080;
+      --r:         14px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 15px; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .sidebar {
+      position: fixed; top: 0; left: 0;
+      width: 230px; height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 28px 0;
+      z-index: 100;
+    }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800; font-size: 1.4rem;
+      color: var(--accent);
+      padding: 0 24px 32px;
+      letter-spacing: -0.5px;
+    }
+    .logo span { color: var(--text); font-weight: 400; }
+    nav a {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 24px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .9rem; font-weight: 500;
+      border-left: 3px solid transparent;
+      transition: all .2s; cursor: pointer;
+    }
+    nav a:hover { color: var(--text); background: var(--surface2); }
+    nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(240,180,41,.06); }
+    nav a .icon { width: 18px; text-align: center; font-size: 1rem; }
+    .sidebar-footer { margin-top: auto; border-top: 1px solid var(--border); }
+    .user-info { display: flex; align-items: center; gap: 10px; padding: 14px 20px 10px; }
+    .user-avatar {
+      width: 34px; height: 34px;
+      background: linear-gradient(135deg, var(--accent), #fb923c);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: #000; flex-shrink: 0;
+    }
+    .user-details { overflow: hidden; }
+    .user-name { font-size: .82rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-role { font-size: .72rem; color: var(--muted); }
+    .btn-logout {
+      display: flex; align-items: center; gap: 10px;
+      width: calc(100% - 32px); margin: 6px 16px 16px;
+      padding: 10px 14px;
+      background: rgba(248,113,113,.08);
+      border: 1px solid rgba(248,113,113,.2);
+      border-radius: 9px; color: var(--red);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .88rem; font-weight: 600;
+      cursor: pointer; transition: all .2s; text-align: left;
+    }
+    .btn-logout:hover { background: rgba(248,113,113,.18); border-color: rgba(248,113,113,.4); transform: translateX(2px); }
+    .btn-logout .icon { font-size: 1rem; }
+
+    .main { margin-left: 230px; padding: 32px 36px; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    .topbar h1 { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px; }
+    .topbar h1 .tag {
+      font-size: .75rem; font-weight: 600;
+      background: rgba(240,180,41,.15); color: var(--accent);
+      border-radius: 6px; padding: 3px 10px;
+      vertical-align: middle; margin-left: 10px; letter-spacing: 0;
+    }
+    .month-select-row { display: flex; align-items: center; gap: 10px; }
+    select, input[type="date"], input[type="text"], input[type="number"] {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 8px 14px;
+      font-family: inherit; font-size: .88rem; outline: none; transition: border-color .2s;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+
+    /* ── BELL ICON ── */
+    .bell-wrapper { position: relative; display: inline-flex; align-items: center; }
+    .bell-btn {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 1.1rem; transition: all .2s; position: relative;
+    }
+    .bell-btn:hover { background: var(--surface); border-color: var(--accent); transform: translateY(-1px); }
+    .bell-btn.ringing { animation: ring .5s ease-in-out; }
+    @keyframes ring {
+      0%,100% { transform: rotate(0deg); }
+      20% { transform: rotate(-15deg); }
+      40% { transform: rotate(15deg); }
+      60% { transform: rotate(-10deg); }
+      80% { transform: rotate(10deg); }
+    }
+    .bell-badge {
+      position: absolute; top: -6px; right: -6px;
+      background: var(--red); color: #fff;
+      font-size: .65rem; font-weight: 700;
+      width: 18px; height: 18px; border-radius: 50%;
+      display: none; align-items: center; justify-content: center;
+      border: 2px solid var(--bg); animation: pulse-badge 2s infinite;
+    }
+    .bell-badge.show { display: flex; }
+    @keyframes pulse-badge { 0%,100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+
+    /* ── BELL DROPDOWN ── */
+    .bell-dropdown {
+      position: absolute; top: calc(100% + 10px); right: 0;
+      width: 320px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 14px;
+      box-shadow: 0 16px 48px rgba(0,0,0,.5);
+      display: none; flex-direction: column; overflow: hidden;
+      z-index: 999; animation: dropIn .2s ease;
+    }
+    .bell-dropdown.open { display: flex; }
+    @keyframes dropIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .bell-dropdown-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+    }
+    .bell-dropdown-header h4 { font-family: 'Syne', sans-serif; font-size: .95rem; font-weight: 700; color: var(--text); }
+    .bell-dropdown-header span { font-size: .75rem; color: var(--muted); }
+    .bell-dropdown-body { max-height: 280px; overflow-y: auto; }
+    .bell-dropdown-body::-webkit-scrollbar { width: 4px; }
+    .bell-dropdown-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .bell-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,.04); transition: background .15s;
+    }
+    .bell-item:last-child { border-bottom: none; }
+    .bell-item:hover { background: var(--surface2); }
+    .bell-item-icon {
+      width: 36px; height: 36px; background: rgba(248,113,113,.12);
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0;
+    }
+    .bell-item-text { flex: 1; }
+    .bell-item-name { font-size: .85rem; font-weight: 600; color: var(--text); }
+    .bell-item-sub { font-size: .75rem; color: var(--red); margin-top: 2px; }
+    .bell-empty { padding: 28px 18px; text-align: center; color: var(--muted); font-size: .85rem; }
+    .bell-empty .bell-empty-icon { font-size: 2rem; margin-bottom: 8px; }
+    .bell-dropdown-footer {
+      padding: 10px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px;
+    }
+    .btn-send-alert {
+      flex: 1; background: rgba(248,113,113,.12);
+      border: 1px solid rgba(248,113,113,.25); color: var(--red);
+      border-radius: 8px; padding: 8px; font-family: inherit;
+      font-size: .82rem; font-weight: 600; cursor: pointer; transition: all .15s;
+    }
+    .btn-send-alert:hover { background: rgba(248,113,113,.22); }
+    .btn-refresh-stock {
+      flex: 1; background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 8px; font-family: inherit;
+      font-size: .82rem; font-weight: 600; cursor: pointer; transition: all .15s;
+    }
+    .btn-refresh-stock:hover { background: var(--border); }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px; margin-bottom: 28px; }
+    .kpi {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+      padding: 22px; position: relative; overflow: hidden; transition: transform .2s, box-shadow .2s;
+    }
+    .kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+    .kpi::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--kpi-color, var(--accent)) 0%, transparent 60%);
+      opacity: .06; pointer-events: none;
+    }
+    .kpi-icon { font-size: 1.5rem; margin-bottom: 12px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.05); border-radius: 10px; }
+    .kpi-label { font-size: .78rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+    .kpi-value { font-family: 'Syne', sans-serif; font-size: 1.7rem; font-weight: 700; margin: 4px 0 2px; letter-spacing: -1px; color: var(--kpi-color, var(--accent)); }
+    .kpi-sub { font-size: .78rem; color: var(--muted); }
+
+    .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; margin-bottom: 28px; }
+    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 24px; }
+    .chart-card h3 { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; margin-bottom: 18px; color: var(--text); }
+    canvas { width: 100% !important; }
+
+    .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 24px; }
+    .table-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--border); }
+    .table-head h3 { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; font-size: .87rem; }
+    th { text-align: left; padding: 12px 20px; font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); background: var(--surface2); font-weight: 600; }
+    td { padding: 13px 20px; border-bottom: 1px solid rgba(255,255,255,.04); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .75rem; font-weight: 600; }
+    .badge-green { background: rgba(52,211,153,.15); color: var(--green); }
+    .badge-red   { background: rgba(248,113,113,.15); color: var(--red); }
+    .badge-blue  { background: rgba(56,189,248,.15);  color: var(--accent2); }
+    .badge-gold  { background: rgba(240,180,41,.15);  color: var(--accent); }
+
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 8px; font-family: inherit; font-size: .87rem; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { background: #f7c84a; transform: translateY(-1px); }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-ghost:hover { background: var(--surface2); }
+    .btn-danger { background: rgba(248,113,113,.15); color: var(--red); border: none; padding: 5px 10px; font-size: .8rem; border-radius: 6px; }
+    .btn-danger:hover { background: rgba(248,113,113,.25); }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: none; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(4px); }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 32px; width: 440px; max-width: 95vw; animation: popIn .2s ease; }
+    @keyframes popIn { from { transform: scale(.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal h2 { font-family: 'Syne', sans-serif; font-size: 1.25rem; font-weight: 700; margin-bottom: 22px; }
+    .form-row { margin-bottom: 16px; }
+    .form-row label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+    .form-row input, .form-row select, .form-row textarea { width: 100%; }
+    .form-row textarea { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 14px; font-family: inherit; font-size: .88rem; resize: vertical; min-height: 70px; outline: none; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+    .logout-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 32px; width: 360px; max-width: 95vw; animation: popIn .2s ease; text-align: center; }
+    .logout-modal .lo-icon { font-size: 2.5rem; margin-bottom: 16px; }
+    .logout-modal h2 { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+    .logout-modal p { font-size: .88rem; color: var(--muted); margin-bottom: 24px; }
+    .logout-modal .lo-actions { display: flex; gap: 10px; justify-content: center; }
+    .btn-confirm-logout { background: var(--red); color: #fff; padding: 10px 24px; border-radius: 8px; font-family: inherit; font-size: .9rem; font-weight: 600; border: none; cursor: pointer; transition: all .15s; }
+    .btn-confirm-logout:hover { background: #ef4444; transform: translateY(-1px); }
+
+    .stock-bar-wrap { background: var(--surface2); border-radius: 999px; height: 6px; overflow: hidden; }
+    .stock-bar { height: 100%; border-radius: 999px; transition: width .6s ease; }
+
+    .toast { position: fixed; bottom: 30px; right: 30px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 14px 20px; border-radius: 10px; font-size: .88rem; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.4); transform: translateY(20px); opacity: 0; transition: all .3s; z-index: 9999; display: flex; align-items: center; gap: 10px; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success .t-icon { color: var(--green); }
+    .toast.error   .t-icon { color: var(--red); }
+
+    @media (max-width: 900px) {
+      .sidebar { width: 60px; }
+      .sidebar .logo, nav a span, .user-details, .btn-logout span { display: none; }
+      .btn-logout { width: calc(100% - 16px); margin: 6px 8px; justify-content: center; }
+      nav a { justify-content: center; padding: 14px; }
+      .main { margin-left: 60px; padding: 20px 16px; }
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+    .modal-overlay { pointer-events: none; }
+.modal-overlay.open { pointer-events: all; }
+.modal { pointer-events: all; }
+
+.pdf-export-bar {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.btn-pdf {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-family: inherit;
+  font-size: .85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-pdf:hover { background: #f7c84a; }
+  </style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">Shop<span>Ledger</span></div>
+  <nav>
+    <a class="active" onclick="showPage('dashboard', event)"><span class="icon">📊</span><span>Dashboard</span></a>
+    <a onclick="showPage('inventory', event)"><span class="icon">📦</span><span>Inventory</span></a>
+    <a onclick="showPage('purchases', event)"><span class="icon">🛒</span><span>Purchases</span></a>
+    <a onclick="showPage('sales', event)"><span class="icon">💰</span><span>Sales</span></a>
+    <a onclick="showPage('expenses', event)"><span class="icon">🧾</span><span>Expenses</span></a>
+    <a onclick="showPage('analytics', event)"><span class="icon">📈</span><span>Analytics</span></a>
+    <a onclick="showPage('products', event)"><span class="icon">🏷️</span><span>Products</span></a>
+  </nav>
+  <div class="pdf-export-bar">
+  <label for="reportMonth" style="font-weight:600; color:#ccc;">📄 Export Report:</label>
+  <input type="month" id="reportMonth" />
+  <button onclick="downloadPDFReport()" class="btn-pdf">
+    ⬇ Download PDF
+  </button>
+</div>
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div class="user-details">
+        <div class="user-name" id="user-name">Admin</div>
+        <div class="user-role">Shop Owner</div>
+      </div>
+    </div>
+    <button class="btn-logout" onclick="confirmLogout()">
+      <span class="icon">🚪</span><span>Logout</span>
+    </button>
+  </div>
+</aside>
+
+<main class="main">
+
+  <!-- DASHBOARD -->
+  <section class="page active" id="page-dashboard">
+    <div class="topbar">
+      <h1>Dashboard <span class="tag" id="dash-period-tag">June 2025</span></h1>
+      <div class="month-select-row">
+
+        <!-- 🔔 BELL NOTIFICATION ICON -->
+        <div class="bell-wrapper" id="bell-wrapper">
+          <button class="bell-btn" id="bell-btn" onclick="toggleBell()" title="Low Stock Alerts">
+            🔔
+            <span class="bell-badge" id="bell-badge">0</span>
+          </button>
+          <div class="bell-dropdown" id="bell-dropdown">
+            <div class="bell-dropdown-header">
+              <h4>⚠️ Low Stock Alerts</h4>
+              <span id="bell-count-label">Checking...</span>
+            </div>
+            <div class="bell-dropdown-body" id="bell-body">
+              <div class="bell-empty">
+                <div class="bell-empty-icon">🔄</div>
+                Loading stock data...
+              </div>
+            </div>
+            <div class="bell-dropdown-footer">
+              <button class="btn-refresh-stock" onclick="loadBellAlerts()">🔄 Refresh</button>
+              <button class="btn-send-alert" onclick="sendManualAlert()">📧 Send Email Alert</button>
+            </div>
+          </div>
+        </div>
+
+        <select id="dash-year" onchange="loadDashboard()"></select>
+        <select id="dash-month" onchange="loadDashboard()">
+          <option value="1">January</option><option value="2">February</option>
+          <option value="3">March</option><option value="4">April</option>
+          <option value="5">May</option><option value="6" selected>June</option>
+          <option value="7">July</option><option value="8">August</option>
+          <option value="9">September</option><option value="10">October</option>
+          <option value="11">November</option><option value="12">December</option>
+        </select>
+      </div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi" style="--kpi-color: var(--accent2)"><div class="kpi-icon">🛒</div><div class="kpi-label">Stock Purchased</div><div class="kpi-value" id="kpi-cost">₹0</div><div class="kpi-sub">Total buying cost</div></div>
+      <div class="kpi" style="--kpi-color: var(--green)"><div class="kpi-icon">💰</div><div class="kpi-label">Total Revenue</div><div class="kpi-value" id="kpi-rev">₹0</div><div class="kpi-sub">From all sales</div></div>
+      <div class="kpi" style="--kpi-color: var(--red)"><div class="kpi-icon">🧾</div><div class="kpi-label">Op. Expenses</div><div class="kpi-value" id="kpi-exp">₹0</div><div class="kpi-sub">Rent, salary, bills</div></div>
+      <div class="kpi" style="--kpi-color: var(--accent)"><div class="kpi-icon">📈</div><div class="kpi-label">Net Profit</div><div class="kpi-value" id="kpi-profit">₹0</div><div class="kpi-sub" id="kpi-margin">Profit margin</div></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card"><h3>Monthly Overview — Last 6 Months</h3><canvas id="trendChart" height="200"></canvas></div>
+      <div class="chart-card"><h3>Expense Breakdown</h3><canvas id="expChart" height="200"></canvas></div>
+    </div>
+    <div class="table-card">
+      <div class="table-head"><h3>Top Selling Products</h3></div>
+      <table><thead><tr><th>Product</th><th>Qty Sold</th><th>Revenue</th></tr></thead><tbody id="top-products-body"></tbody></table>
+    </div>
+  </section>
+
+  <!-- INVENTORY -->
+  <section class="page" id="page-inventory">
+    <div class="topbar"><h1>Inventory</h1><button class="btn btn-ghost" onclick="loadInventory()">🔄 Refresh</button></div>
+    <div class="table-card">
+      <table><thead><tr><th>Product</th><th>Category</th><th>Purchased</th><th>Sold</th><th>Remaining</th><th>Stock Level</th><th>Gross Profit</th><th>ROI</th></tr></thead><tbody id="inv-body"></tbody></table>
+    </div>
+  </section>
+
+  <!-- PURCHASES -->
+  <section class="page" id="page-purchases">
+    <div class="topbar"><h1>Purchases</h1>
+      <div class="month-select-row">
+        <select id="pur-year" onchange="loadPurchases()"></select>
+        <select id="pur-month" onchange="loadPurchases()">
+          <option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6" selected>June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModal('modal-purchase')">+ Add Purchase</button>
+      </div>
+    </div>
+    <div class="table-card"><table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Cost/Unit</th><th>Total Cost</th><th>Notes</th><th></th></tr></thead><tbody id="pur-body"></tbody></table></div>
+  </section>
+
+  <!-- SALES -->
+  <section class="page" id="page-sales">
+    <div class="topbar"><h1>Sales</h1>
+      <div class="month-select-row">
+        <select id="sal-year" onchange="loadSales()"></select>
+        <select id="sal-month" onchange="loadSales()">
+          <option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6" selected>June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModal('modal-sale')">+ Record Sale</button>
+      </div>
+    </div>
+    <div class="table-card"><table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Price/Unit</th><th>Revenue</th><th>Notes</th><th></th></tr></thead><tbody id="sal-body"></tbody></table></div>
+  </section>
+
+  <!-- EXPENSES -->
+  <section class="page" id="page-expenses">
+    <div class="topbar"><h1>Expenses</h1>
+      <div class="month-select-row">
+        <select id="exp-year" onchange="loadExpenses()"></select>
+        <select id="exp-month" onchange="loadExpenses()">
+          <option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6" selected>June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option>
+        </select>
+        <button class="btn btn-primary" onclick="openModal('modal-expense')">+ Add Expense</button>
+      </div>
+    </div>
+    <div class="table-card"><table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th></th></tr></thead><tbody id="exp-body"></tbody></table></div>
+  </section>
+
+  <!-- ANALYTICS -->
+  <section class="page" id="page-analytics">
+    <div class="topbar"><h1>Analytics <span class="tag">Data Science</span></h1><button class="btn btn-ghost" onclick="loadAnalytics()">🔄 Refresh</button></div>
+    <div class="charts-grid">
+      <div class="chart-card"><h3>12-Month Profit Trend + 3-Month Rolling Average</h3><canvas id="profitTrendChart" height="200"></canvas></div>
+      <div class="chart-card"><h3>Profit Margin % by Month</h3><canvas id="marginChart" height="200"></canvas></div>
+    </div>
+    <div class="table-card">
+      <div class="table-head"><h3>Product Performance — ROI & Sell-Through Rate</h3></div>
+      <table><thead><tr><th>Product</th><th>Total Purchased</th><th>Total Sold</th><th>Remaining</th><th>Sell-Through %</th><th>ROI %</th><th>Gross Profit</th></tr></thead><tbody id="perf-body"></tbody></table>
+    </div>
+    <div class="table-card">
+      <div class="table-head"><h3>⚠️ Low Stock Alerts (≤ 10 units)</h3></div>
+      <table><thead><tr><th>Product</th><th>Category</th><th>Remaining Stock</th><th>Unit</th></tr></thead><tbody id="low-stock-body"></tbody></table>
+    </div>
+  </section>
+
+  <!-- PRODUCTS -->
+  <section class="page" id="page-products">
+    <div class="topbar"><h1>Products</h1><button class="btn btn-primary" onclick="openModal('modal-product')">+ Add Product</button></div>
+    <div class="table-card"><table><thead><tr><th>Name</th><th>Category</th><th>Unit</th><th>Added</th><th></th></tr></thead><tbody id="prod-body"></tbody></table></div>
+  </section>
+
+</main>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-purchase">
+  <div class="modal">
+    <h2>🛒 Record Purchase</h2>
+    <div class="form-row"><label>Product</label><select id="pur-product"></select></div>
+    <div class="form-row"><label>Quantity</label><input type="number" id="pur-qty" min="0.01" step="0.01" placeholder="e.g. 50"/></div>
+    <div class="form-row"><label>Cost per Unit (₹)</label><input type="number" id="pur-cpu" min="0" step="0.01" placeholder="e.g. 45.00"/></div>
+    <div class="form-row"><label>Purchase Date</label><input type="date" id="pur-date"/></div>
+    <div class="form-row"><label>Notes (optional)</label><textarea id="pur-notes" placeholder="Supplier name, batch, etc."></textarea></div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal('modal-purchase')">Cancel</button><button class="btn btn-primary" onclick="submitPurchase()">Save Purchase</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-sale">
+  <div class="modal">
+    <h2>💰 Record Sale</h2>
+    <div class="form-row"><label>Product</label><select id="sal-product"></select></div>
+    <div class="form-row"><label>Quantity Sold</label><input type="number" id="sal-qty" min="0.01" step="0.01" placeholder="e.g. 20"/></div>
+    <div class="form-row"><label>Selling Price per Unit (₹)</label><input type="number" id="sal-spu" min="0" step="0.01" placeholder="e.g. 60.00"/></div>
+    <div class="form-row"><label>Sale Date</label><input type="date" id="sal-date"/></div>
+    <div class="form-row"><label>Notes (optional)</label><textarea id="sal-notes" placeholder="Customer, invoice no., etc."></textarea></div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal('modal-sale')">Cancel</button><button class="btn btn-primary" onclick="submitSale()">Save Sale</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-expense">
+  <div class="modal">
+    <h2>🧾 Add Expense</h2>
+    <div class="form-row"><label>Category</label><select id="exp-cat"><option>Rent</option><option>Electricity</option><option>Water</option><option>Salary</option><option>Transport</option><option>Maintenance</option><option>Marketing</option><option>Miscellaneous</option></select></div>
+    <div class="form-row"><label>Description</label><input type="text" id="exp-desc" placeholder="e.g. Monthly rent - May"/></div>
+    <div class="form-row"><label>Amount (₹)</label><input type="number" id="exp-amt" min="0" step="0.01" placeholder="e.g. 5000"/></div>
+    <div class="form-row"><label>Date</label><input type="date" id="exp-expdate"/></div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal('modal-expense')">Cancel</button><button class="btn btn-primary" onclick="submitExpense()">Save Expense</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-product">
+  <div class="modal">
+    <h2>🏷️ Add Product</h2>
+    <div class="form-row"><label>Product Name</label><input type="text" id="prod-name" placeholder="e.g. Basmati Rice"/></div>
+    <div class="form-row"><label>Category</label><input type="text" id="prod-cat" placeholder="e.g. Groceries"/></div>
+    <div class="form-row"><label>Unit</label><select id="prod-unit"><option value="pcs">pcs</option><option value="kg">kg</option><option value="g">g</option><option value="litre">litre</option><option value="ml">ml</option><option value="packet">packet</option><option value="box">box</option><option value="bottle">bottle</option></select></div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal('modal-product')">Cancel</button><button class="btn btn-primary" onclick="submitProduct()">Add Product</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-logout">
+  <div class="logout-modal">
+    <div class="lo-icon">🚪</div>
+    <h2>Logout?</h2>
+    <p>Are you sure you want to logout from ShopLedger?</p>
+    <div class="lo-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-logout')">Cancel</button>
+      <button class="btn-confirm-logout" onclick="doLogout()">Yes, Logout</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="t-icon">✓</span><span id="toast-msg"></span></div>
+
+<script>
+const API = "http://localhost:5000/api";
+const MONTHS = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+let trendChart, expChart, profitTrendChart, marginChart;
+let products = [];
+let bellOpen = false;
+
+const $ = id => document.getElementById(id);
+const fmt = n => "₹" + Number(n).toLocaleString("en-IN", {minimumFractionDigits:2, maximumFractionDigits:2});
+
+function showToast(msg, type="success") {
+  const t = $("toast"); t.className = `toast ${type}`;
+  $("toast-msg").textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 3000);
+}
+function openModal(id)  { $(id).classList.add("open"); }
+function closeModal(id) { $(id).classList.remove("open"); }
+
+// ── LOGOUT ──────────────────────────────────────
+function confirmLogout() { openModal('modal-logout'); }
+async function doLogout() {
+  try { await fetch(`${API}/logout`, { method: 'POST' }); } catch(e) {}
+  sessionStorage.removeItem('shopledger_user');
+  localStorage.removeItem('shopledger_user');
+  showToast("Logged out successfully!");
+  setTimeout(() => { window.location.href = 'login.html'; }, 1000);
+}
+
+// ── USER INFO ────────────────────────────────────
+function setUserInfo() {
+  const user = sessionStorage.getItem('shopledger_user') || localStorage.getItem('shopledger_user') || 'Admin';
+  $('user-name').textContent = user.charAt(0).toUpperCase() + user.slice(1);
+  $('user-avatar').textContent = user.charAt(0).toUpperCase();
+}
+
+// ── BELL ICON ────────────────────────────────────
+function toggleBell() {
+  bellOpen = !bellOpen;
+  const dropdown = $('bell-dropdown');
+  const btn = $('bell-btn');
+  if (bellOpen) {
+    dropdown.classList.add('open');
+    btn.classList.add('ringing');
+    setTimeout(() => btn.classList.remove('ringing'), 500);
+    loadBellAlerts();
+  } else {
+    dropdown.classList.remove('open');
+  }
+}
+
+document.addEventListener('click', function(e) {
+  const wrapper = $('bell-wrapper');
+  if (wrapper && !wrapper.contains(e.target) && bellOpen) {
+    bellOpen = false;
+    $('bell-dropdown').classList.remove('open');
+  }
+});
+
+async function loadBellAlerts() {
+  $('bell-body').innerHTML = `<div class="bell-empty"><div class="bell-empty-icon">🔄</div>Checking stock...</div>`;
+  $('bell-count-label').textContent = 'Checking...';
+  try {
+    const res  = await fetch(`${API}/analytics/low-stock`);
+    const data = await res.json();
+    const badge = $('bell-badge');
+    const count = data.length;
+    if (count > 0) {
+      badge.textContent = count;
+      badge.classList.add('show');
+      $('bell-count-label').textContent = `${count} item${count>1?'s':''} low`;
+    } else {
+      badge.classList.remove('show');
+      $('bell-count-label').textContent = 'All stocked ✓';
+    }
+    if (count === 0) {
+      $('bell-body').innerHTML = `<div class="bell-empty"><div class="bell-empty-icon">✅</div>All products are well stocked!</div>`;
+    } else {
+      $('bell-body').innerHTML = data.map(p => `
+        <div class="bell-item">
+          <div class="bell-item-icon">📦</div>
+          <div class="bell-item-text">
+            <div class="bell-item-name">${p.name}</div>
+            <div class="bell-item-sub">⚠️ Only ${p.remaining_stock} ${p.unit} left</div>
+          </div>
+        </div>`).join('');
+    }
+  } catch(e) {
+    $('bell-body').innerHTML = `<div class="bell-empty"><div class="bell-empty-icon">❌</div>Could not load stock data</div>`;
+    $('bell-count-label').textContent = 'Error';
+  }
+}
+
+async function sendManualAlert() {
+  const btn = document.querySelector('.btn-send-alert');
+  btn.textContent = '📧 Sending...';
+  btn.disabled = true;
+  try {
+    const res  = await fetch(`${API}/send-low-stock-alert`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) showToast('✅ Low stock alert email sent!');
+    else showToast(data.message || 'No low stock items found', 'error');
+  } catch(e) {
+    showToast('Could not send alert — is Flask running?', 'error');
+  }
+  btn.textContent = '📧 Send Email Alert';
+  btn.disabled = false;
+}
+
+function populateYears(selId) {
+  const sel = $(selId); if (!sel) return;
+  const y = new Date().getFullYear();
+  for (let i = y - 2; i <= y + 1; i++) {
+    const o = document.createElement("option");
+    o.value = i; o.textContent = i;
+    if (i === y) o.selected = true;
+    sel.appendChild(o);
+  }
+}
+
+function populateProductSelects() {
+  ["pur-product","sal-product"].forEach(id => {
+    const sel = $(id); if (!sel) return;
+    sel.innerHTML = products.map(p => `<option value="${p.id}">${p.name} (${p.unit})</option>`).join("");
+  });
+}
+
+function showPage(name, event) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll("nav a").forEach(a => a.classList.remove("active"));
+  $(`page-${name}`).classList.add("active");
+  if (event) event.currentTarget.classList.add("active");
+  const loaders = { dashboard:loadDashboard, inventory:loadInventory, purchases:loadPurchases, sales:loadSales, expenses:loadExpenses, analytics:loadAnalytics, products:loadProducts };
+  if (loaders[name]) loaders[name]();
+}
+
+// ── DASHBOARD ────────────────────────────────────
+async function loadDashboard() {
+  const year  = $("dash-year")?.value  || new Date().getFullYear();
+  const month = $("dash-month")?.value || new Date().getMonth() + 1;
+  $("dash-period-tag").textContent = `${MONTHS[month]} ${year}`;
+  try {
+    const res  = await fetch(`${API}/dashboard?year=${year}&month=${month}`);
+    const data = await res.json();
+    const { kpi, trend, top_products, exp_breakdown } = data;
+    $("kpi-cost").textContent   = fmt(kpi.stock_cost);
+    $("kpi-rev").textContent    = fmt(kpi.total_revenue);
+    $("kpi-exp").textContent    = fmt(kpi.op_expenses);
+    $("kpi-profit").textContent = fmt(kpi.net_profit);
+    $("kpi-margin").textContent = `${kpi.profit_margin}% profit margin`;
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart($("trendChart"), {
+      type:"bar",
+      data:{ labels:trend.map(t=>t.label), datasets:[
+        { label:"Revenue",    data:trend.map(t=>t.revenue),  backgroundColor:"rgba(52,211,153,.7)",  borderRadius:6 },
+        { label:"Stock Cost", data:trend.map(t=>t.cost),     backgroundColor:"rgba(56,189,248,.5)",  borderRadius:6 },
+        { label:"Expenses",   data:trend.map(t=>t.expenses), backgroundColor:"rgba(248,113,113,.5)", borderRadius:6 },
+        { label:"Net Profit", data:trend.map(t=>t.profit),   backgroundColor:"rgba(240,180,41,.8)",  borderRadius:6,
+          type:"line", borderColor:"#f0b429", borderWidth:2, pointBackgroundColor:"#f0b429", tension:.35, fill:false },
+      ]},
+      options: chartOptions("₹")
+    });
+    if (expChart) expChart.destroy();
+    const COLORS = ["#f87171","#fbbf24","#34d399","#38bdf8","#a78bfa","#fb923c"];
+    expChart = new Chart($("expChart"), {
+      type:"doughnut",
+      data:{ labels:exp_breakdown.map(e=>e.category), datasets:[{ data:exp_breakdown.map(e=>e.total), backgroundColor:COLORS, borderColor:"#161921", borderWidth:2, hoverOffset:8 }]},
+      options:{ responsive:true, plugins:{ legend:{ position:"bottom", labels:{ color:"#6b7080", font:{size:12} } } } }
+    });
+    const tbody = $("top-products-body");
+    tbody.innerHTML = top_products.length
+      ? top_products.map(p=>`<tr><td>${p.name}</td><td>${p.qty_sold}</td><td><span class="badge badge-green">${fmt(p.revenue)}</span></td></tr>`).join("")
+      : `<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:20px">No sales data for this period</td></tr>`;
+  } catch(e) { showToast("Could not load dashboard — is Flask running?", "error"); }
+}
+
+function chartOptions(prefix="") {
+  return {
+    responsive:true,
+    plugins:{ legend:{ labels:{ color:"#6b7080", font:{size:12} } }, tooltip:{ callbacks:{ label: ctx => ` ${prefix}${Number(ctx.raw).toLocaleString("en-IN")}` } } },
+    scales:{ x:{ ticks:{color:"#6b7080"}, grid:{color:"rgba(255,255,255,.05)"} }, y:{ ticks:{color:"#6b7080", callback:v=>`₹${(v/1000).toFixed(0)}k`}, grid:{color:"rgba(255,255,255,.05)"} } }
+  };
+}
+
+// ── INVENTORY ────────────────────────────────────
+async function loadInventory() {
+  const res  = await fetch(`${API}/inventory`);
+  const data = await res.json();
+  $("inv-body").innerHTML = data.map(p => {
+    const pct   = p.total_purchased > 0 ? Math.round((p.total_sold/p.total_purchased)*100) : 0;
+    const color = p.remaining_stock<=5 ? "var(--red)" : p.remaining_stock<=15 ? "var(--accent)" : "var(--green)";
+    const roi   = p.total_cost > 0 ? ((p.gross_profit/p.total_cost)*100).toFixed(1) : "0.0";
+    return `<tr>
+      <td><strong>${p.name}</strong></td>
+      <td><span class="badge badge-blue">${p.category||"-"}</span></td>
+      <td>${p.total_purchased} ${p.unit}</td><td>${p.total_sold} ${p.unit}</td>
+      <td style="color:${color};font-weight:600">${p.remaining_stock} ${p.unit}</td>
+      <td style="width:120px"><div class="stock-bar-wrap"><div class="stock-bar" style="width:${Math.min(pct,100)}%;background:${color}"></div></div><small style="color:var(--muted)">${pct}% sold</small></td>
+      <td style="color:${p.gross_profit>=0?'var(--green)':'var(--red)'}">${fmt(p.gross_profit)}</td>
+      <td><span class="badge ${roi>=0?'badge-green':'badge-red'}">${roi}%</span></td>
+    </tr>`;
+  }).join("");
+}
+
+// ── PURCHASES ────────────────────────────────────
+async function loadPurchases() {
+  const year=$("pur-year")?.value||new Date().getFullYear(), month=$("pur-month")?.value||new Date().getMonth()+1;
+  const data = await (await fetch(`${API}/purchases?year=${year}&month=${month}`)).json();
+  $("pur-body").innerHTML = data.map(p=>`<tr><td>${p.purchase_date}</td><td>${p.product_name}</td><td>${p.quantity}</td><td>${fmt(p.cost_per_unit)}</td><td><strong>${fmt(p.total_amount)}</strong></td><td style="color:var(--muted);font-size:.82rem">${p.notes||"-"}</td><td><button class="btn btn-danger" onclick="deletePurchase(${p.id})">✕</button></td></tr>`).join("") || noData(7);
+}
+async function submitPurchase() {
+  const payload = { product_id:$("pur-product").value, quantity:$("pur-qty").value, cost_per_unit:$("pur-cpu").value, purchase_date:$("pur-date").value, notes:$("pur-notes").value };
+  const res = await fetch(`${API}/purchases`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  if (res.ok) { showToast("Purchase recorded!"); closeModal("modal-purchase"); loadPurchases(); } else { const err = await res.json(); showToast(err.error || "Already exists!", "error"); }
+}
+async function deletePurchase(id) {
+  if (!confirm("Delete this purchase?")) return;
+  await fetch(`${API}/purchases/${id}`,{method:"DELETE"}); showToast("Deleted"); loadPurchases();
+}
+
+// ── SALES ────────────────────────────────────────
+async function loadSales() {
+  const year=$("sal-year")?.value||new Date().getFullYear(), month=$("sal-month")?.value||new Date().getMonth()+1;
+  const data = await (await fetch(`${API}/sales?year=${year}&month=${month}`)).json();
+  $("sal-body").innerHTML = data.map(s=>`<tr><td>${s.sale_date}</td><td>${s.product_name}</td><td>${s.quantity}</td><td>${fmt(s.sell_price_per_unit)}</td><td><strong style="color:var(--green)">${fmt(s.total_amount)}</strong></td><td style="color:var(--muted);font-size:.82rem">${s.notes||"-"}</td><td><button class="btn btn-danger" onclick="deleteSale(${s.id})">✕</button></td></tr>`).join("") || noData(7);
+}
+async function submitSale() {
+  const payload = { product_id:$("sal-product").value, quantity:$("sal-qty").value, sell_price_per_unit:$("sal-spu").value, sale_date:$("sal-date").value, notes:$("sal-notes").value };
+  const res = await fetch(`${API}/sales`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  if (res.ok) { showToast("Sale recorded!"); closeModal("modal-sale"); loadSales(); } 
+  else { const err = await res.json(); showToast(err.error || "Error", "error"); }
+}
+async function deleteSale(id) {
+  if (!confirm("Delete this sale?")) return;
+  await fetch(`${API}/sales/${id}`,{method:"DELETE"}); showToast("Deleted"); loadSales();
+}
+
+// ── EXPENSES ─────────────────────────────────────
+async function loadExpenses() {
+  const year=$("exp-year")?.value||new Date().getFullYear(), month=$("exp-month")?.value||new Date().getMonth()+1;
+  const data = await (await fetch(`${API}/expenses?year=${year}&month=${month}`)).json();
+  $("exp-body").innerHTML = data.map(e=>`<tr><td>${e.expense_date}</td><td><span class="badge badge-red">${e.category}</span></td><td style="color:var(--muted)">${e.description||"-"}</td><td><strong style="color:var(--red)">${fmt(e.amount)}</strong></td><td><button class="btn btn-danger" onclick="deleteExpense(${e.id})">✕</button></td></tr>`).join("") || noData(5);
+}
+async function submitExpense() {
+  const payload = { category:$("exp-cat").value, description:$("exp-desc").value, amount:$("exp-amt").value, expense_date:$("exp-expdate").value };
+  const res = await fetch(`${API}/expenses`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  if (res.ok) { showToast("Expense saved!"); closeModal("modal-expense"); loadExpenses(); } else showToast("Error","error");
+}
+async function deleteExpense(id) {
+  if (!confirm("Delete this expense?")) return;
+  await fetch(`${API}/expenses/${id}`,{method:"DELETE"}); showToast("Deleted"); loadExpenses();
+}
+
+// ── ANALYTICS ────────────────────────────────────
+async function loadAnalytics() {
+  const [trendRes,perfRes,lowRes] = await Promise.all([fetch(`${API}/analytics/profit-trend`),fetch(`${API}/analytics/product-performance`),fetch(`${API}/analytics/low-stock`)]);
+  const trend=await trendRes.json(), perf=await perfRes.json(), low=await lowRes.json();
+  if (profitTrendChart) profitTrendChart.destroy();
+  profitTrendChart = new Chart($("profitTrendChart"), { type:"bar", data:{ labels:trend.map(t=>t.label), datasets:[{ label:"Net Profit", data:trend.map(t=>t.profit), backgroundColor:"rgba(240,180,41,.7)", borderRadius:6 },{ label:"3M Rolling Avg", data:trend.map(t=>t.rolling_avg), type:"line", borderColor:"#38bdf8", borderWidth:2, pointBackgroundColor:"#38bdf8", tension:.4, fill:false }]}, options:chartOptions("₹") });
+  if (marginChart) marginChart.destroy();
+  marginChart = new Chart($("marginChart"), { type:"line", data:{ labels:trend.map(t=>t.label), datasets:[{ label:"Profit Margin %", data:trend.map(t=>t.profit_margin), borderColor:"#34d399", borderWidth:2, backgroundColor:"rgba(52,211,153,.1)", fill:true, pointBackgroundColor:"#34d399", tension:.4 }]}, options:{ responsive:true, plugins:{ legend:{ labels:{ color:"#6b7080" } } }, scales:{ x:{ ticks:{color:"#6b7080"}, grid:{color:"rgba(255,255,255,.05)"} }, y:{ ticks:{color:"#6b7080", callback:v=>v+"%"}, grid:{color:"rgba(255,255,255,.05)"} } } } });
+  $("perf-body").innerHTML = perf.map(p=>`<tr><td><strong>${p.name}</strong></td><td>${p.total_purchased} ${p.unit}</td><td>${p.total_sold} ${p.unit}</td><td style="color:${p.remaining_stock<=5?'var(--red)':p.remaining_stock<=15?'var(--accent)':'var(--green)'}">${p.remaining_stock} ${p.unit}</td><td><span class="badge badge-blue">${p.sell_through_rate}%</span></td><td><span class="badge ${p.roi_percent>=0?'badge-green':'badge-red'}">${p.roi_percent}%</span></td><td style="color:${p.gross_profit>=0?'var(--green)':'var(--red)'};font-weight:600">${fmt(p.gross_profit)}</td></tr>`).join("") || noData(7);
+  $("low-stock-body").innerHTML = low.length ? low.map(p=>`<tr><td><strong>${p.name}</strong></td><td>${p.category||"-"}</td><td><span class="badge badge-red">${p.remaining_stock} remaining</span></td><td>${p.unit}</td></tr>`).join("") : `<tr><td colspan="4" style="color:var(--green);text-align:center;padding:18px">✓ All products are well stocked</td></tr>`;
+}
+
+// ── PRODUCTS ─────────────────────────────────────
+async function loadProducts() {
+  const res = await fetch(`${API}/products`); products = await res.json(); populateProductSelects();
+  $("prod-body").innerHTML = products.map(p=>`<tr><td><strong>${p.name}</strong></td><td><span class="badge badge-blue">${p.category||"-"}</span></td><td>${p.unit}</td><td style="color:var(--muted);font-size:.82rem">${p.created_at?.slice(0,10)||"-"}</td><td><button class="btn btn-danger" onclick="deleteProduct(${p.id})">✕ Delete</button></td></tr>`).join("") || noData(5);
+}
+async function submitProduct() {
+  const payload = { name:$("prod-name").value, category:$("prod-cat").value, unit:$("prod-unit").value };
+  const res = await fetch(`${API}/products`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  if (res.ok) { showToast("Product added!"); closeModal("modal-product"); loadProducts(); }
+  else { const err = await res.json(); showToast(err.error || "Error", "error"); }
+}
+async function deleteProduct(id) {
+  if (!confirm("Delete product? All linked data will also be removed.")) return;
+  await fetch(`${API}/products/${id}`,{method:"DELETE"}); showToast("Product deleted"); loadProducts();
+}
+
+function noData(cols) { return `<tr><td colspan="${cols}" style="color:var(--muted);text-align:center;padding:22px">No records found</td></tr>`; }
+
+async function downloadPDFReport() {
+  const val = $("reportMonth")?.value;
+  if (!val) { showToast("Please select a month first", "error"); return; }
+  const [year, month] = val.split("-");
+  showToast("Generating PDF...");
+  const res = await fetch(`${API}/export-pdf?year=${year}&month=${month}`);
+  if (!res.ok) { showToast("PDF generation failed", "error"); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `ShopLedger_${year}_${month}.pdf`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast("PDF downloaded!");
+}
+// ── INIT ─────────────────────────────────────────
+(async function init() {
+  setUserInfo();
+  const today = new Date().toISOString().slice(0,10);
+  ["pur-date","sal-date","exp-expdate"].forEach(id => { if($(id)) $(id).value = today; });
+  ["dash-year","pur-year","sal-year","exp-year"].forEach(populateYears);
+  const cm = (new Date().getMonth()+1).toString();
+  ["dash-month","pur-month","sal-month","exp-month"].forEach(id => { if($(id)) $(id).value = cm; });
+  await loadProducts();
+  loadDashboard();
+  loadBellAlerts();
+  document.querySelectorAll(".modal-overlay").forEach(o => {
+    o.addEventListener("click", e => { if (e.target === o) o.classList.remove("open"); });
+  });
+})();
+</script>
+</body>
+</html>
